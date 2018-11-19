@@ -7,7 +7,8 @@
 #include <netinet/in.h>
 #include <dirent.h>
 #include <pthread.h>
-
+#include <fcntl.h>
+#include <sys/stat.h>
 typedef struct Queue {
     int capacity;
     int size;
@@ -16,10 +17,11 @@ typedef struct Queue {
     char** data;
 } Queue;
 char *root;
+char content[0xff];
 Queue *Q = NULL;
-//pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 char response[0xfff];
-
+int forClientSockfd = 0;
 
 void createQueue(int maxElements)
 {
@@ -30,7 +32,7 @@ void createQueue(int maxElements)
     Q->front = 0;
     Q->back = -1;
 }
-void dequeue(Queue *Q)
+void dequeue()
 {
     if(Q->size==0) {
         printf("Queue is Empty\n");
@@ -44,7 +46,7 @@ void dequeue(Queue *Q)
     }
     return;
 }
-char* pop(Queue *Q)
+char* pop()
 {
     if(Q->size==0) {
         printf("Queue is Empty\n");
@@ -52,7 +54,7 @@ char* pop(Queue *Q)
     }
     return Q->data[Q->front];
 }
-void enqueue(Queue *Q,char* msg)
+void enqueue(char* msg)
 {
     if(Q->size == Q->capacity) {
         printf("Queue is Full\n");
@@ -69,11 +71,16 @@ void enqueue(Queue *Q,char* msg)
 
 void listFile(char* root)
 {
+    memset(content,0,sizeof(content));
     DIR *dir;
+    int num =0;
     struct dirent *ent;
     if((dir = opendir(root))!=NULL) {
         while((ent = readdir(dir))!=NULL) {
-            printf("%s\n",ent->d_name);
+            if(ent->d_type == "DT_REG" ||ent->d_type == "DT_DIR")
+                printf("%s ",ent->d_name);
+            sprintf(content+strlen(content),"%s ",ent->d_name);
+            num++;
         }
         closedir(dir);
     } else {
@@ -104,24 +111,31 @@ char* getType(char *queryType)
         return NULL;
 }
 
-void respond(char *msg,char* root)
+void respond(char *msg)
 {
+    printf("\ns\n");
     char status[0xff];
-    char *type;
-    char content[0xfff] = "";
+    char *type,ch;
+    //char *content;
     char *method = strtok(msg," ");
     char *query = strtok(NULL," ");
 
     char file[0xff];
     memset(file,'\0',sizeof(file));
-    strcpy(file,root);
-    strcat(file,query);
+    strcpy(file,root);  //copy root
+    strcat(file,query); //root+query=file
 
-    char *q = strtok(query,".");
-    char *queryType = strtok(NULL,".");
-    if(queryType==NULL) type = "directory";
-    else    type = getType(queryType);
-
+    //listFile(list);
+    struct stat buf;
+    stat(file,&buf);
+    if(S_ISDIR(buf.st_mode)) {
+        type = "directory";
+        listFile(file);
+    } else {
+        char *q = strtok(query,".");
+        char *queryType = strtok(NULL,".");
+        type = getType(queryType);
+    }
 
     if(query[0]!='/')
         strcpy(status,"400 Bad Request");
@@ -135,19 +149,23 @@ void respond(char *msg,char* root)
         strcpy(status,"200 OK");
     sprintf(response,"HTTP/1.x %s\r\nContent-Type: %s\r\nServer: httpserver/1.x\r\n\r\n%s",status,type,content);
 }
-/*
-void* threadWork(){
-    do{
+
+void* threadWork()
+{
+    do {
         pthread_mutex_lock(&mutex);
         if (Q->size > 0) {
-            char* msg = pop(Q);
+            char* msg = pop();
             respond(msg);
-            dequeue(msg);
+            printf("a");
+            send(forClientSockfd,response,sizeof(response),0);
+            printf("b");
+            dequeue();
         }
         pthread_mutex_unlock(&mutex);
-    }while(1);
+    } while(1);
 }
-*/
+
 int main(int argc, char *argv[])
 {
     root = argv[2];
@@ -155,11 +173,11 @@ int main(int argc, char *argv[])
     listFile(argv[2]);
     int port = atoi(argv[4]);
     int THREAD_NUM = atoi(argv[6]);
-    createQueue(THREAD_NUM);
+    createQueue(10);
 
     //create socket
-    char *receive;
-    int serverfd = 0,forClientSockfd = 0;
+    char receive[100] = {};
+    int serverfd = 0;//,forClientSockfd = 0;
     serverfd = socket(AF_INET, SOCK_STREAM, 0);
     if (serverfd == -1) {
         printf("Fail to create a socket.");
@@ -174,27 +192,25 @@ int main(int argc, char *argv[])
     serverInfo.sin_port = htons(port);
     bind(serverfd,(struct sockaddr *)&serverInfo,sizeof(serverInfo));
     listen(serverfd,5);
-    /*
+
     pthread_t t[THREAD_NUM];
     pthread_attr_t attr;
-    pthread_attr_init(&attr);/*
-    for(int i = 0; i < THREAD_NUM; i++){
-        pthread_create(&t[i], NULL,*threadWork,NULL);
+    pthread_attr_init(&attr);
+    for(int i = 0; i < THREAD_NUM; i++) {
+        pthread_create(&t[i], &attr,*threadWork,NULL);
     }
-    for(int i = 0; i < THREAD_NUM; i++){
-        pthread_join(&t[i], NULL);
+    /*for(int i = 0; i < THREAD_NUM; i++){
+        pthread_join(t[i], NULL);
     }*/
+
     //receive
     while(1) {
         forClientSockfd = accept(serverfd,(struct sockaddr*) &clientInfo, &addrlen);
-
         recv(forClientSockfd,receive,sizeof(receive),0);
-        enqueue(Q,receive);
+        enqueue(receive);
         //printf("Get:%s\n",inputBuffer);
-        //respond(inputBuffer,argv[2]);
-
-
-        send(forClientSockfd,response,sizeof(response),0);
+        //respond(receive);
+        //   send(forClientSockfd,response,sizeof(response),0);
     }
 
     return 0;
