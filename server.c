@@ -71,16 +71,16 @@ void enqueue(char* msg)
 
 void listFile(char* root)
 {
-    memset(content,0,sizeof(content));
     DIR *dir;
     int num =0;
     struct dirent *ent;
     if((dir = opendir(root))!=NULL) {
         while((ent = readdir(dir))!=NULL) {
-            if(ent->d_type == "DT_REG" ||ent->d_type == "DT_DIR")
-                printf("%s ",ent->d_name);
-            sprintf(content+strlen(content),"%s ",ent->d_name);
-            num++;
+            //printf("%s ",ent->d_name);
+            if(strcmp(ent->d_name,".")!=0 & strcmp(ent->d_name,"..")!=0) {
+                sprintf(content+strlen(content),"%s ",ent->d_name);
+                num++;
+            }
         }
         closedir(dir);
     } else {
@@ -111,21 +111,29 @@ char* getType(char *queryType)
         return NULL;
 }
 
+void fileContent(char *file)
+{
+    FILE *fptr;
+    fptr = fopen(file,"r");
+    char str[50];
+    while(fgets(str,50,fptr))
+        sprintf(content+strlen(content),"%s",str);
+    fclose(fptr);
+}
 void respond(char *msg)
 {
-    printf("\ns\n");
+    printf("\n%s\n",msg);
     char status[0xff];
     char *type,ch;
-    //char *content;
+    memset(content,0,sizeof(content));
     char *method = strtok(msg," ");
     char *query = strtok(NULL," ");
-
     char file[0xff];
-    memset(file,'\0',sizeof(file));
-    strcpy(file,root);  //copy root
-    strcat(file,query); //root+query=file
 
-    //listFile(list);
+    memset(file,'\0',sizeof(file));
+    strcpy(file,root);  //copy root to file
+    strcat(file,query); //root + query = file
+
     struct stat buf;
     stat(file,&buf);
     if(S_ISDIR(buf.st_mode)) {
@@ -135,18 +143,24 @@ void respond(char *msg)
         char *q = strtok(query,".");
         char *queryType = strtok(NULL,".");
         type = getType(queryType);
+        fileContent(file);
+
     }
 
     if(query[0]!='/')
         strcpy(status,"400 Bad Request");
-    //else if(strcmp(method,"GET")!=0)
-    //  strcpy(status,"405 Method Not Allowed");
+    else if(strcmp(method,"GET")!=0)
+        strcpy(status,"405 Method Not Allowed");
     else if(type==NULL)
         strcpy(status,"415 Unsupported Media Type");
     else if(access(file,F_OK)!=0)
         strcpy(status,"404 Not Found");
     else
         strcpy(status,"200 OK");
+    /* if(strcmp(status,"200 OK")!=0){
+         memset(type,0,sizeof(type));
+         memset(content,0,sizeof(content));
+     }*/
     sprintf(response,"HTTP/1.x %s\r\nContent-Type: %s\r\nServer: httpserver/1.x\r\n\r\n%s",status,type,content);
 }
 
@@ -169,7 +183,7 @@ void* threadWork()
 int main(int argc, char *argv[])
 {
     root = argv[2];
-    printf("%s",root);
+
     listFile(argv[2]);
     int port = atoi(argv[4]);
     int THREAD_NUM = atoi(argv[6]);
