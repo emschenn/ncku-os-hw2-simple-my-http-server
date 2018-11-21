@@ -8,10 +8,10 @@
 #include <netinet/in.h>
 #include <pthread.h>
 
-char response[0xfff];
-char query[50];
-char port[10];
-char host[20];
+char response[5000];
+char *query;
+char *port;
+char *host;
 
 void* sendnrecv(clientfd)
 {
@@ -33,13 +33,14 @@ void thread(char *msg)
 
 int main(int argc, char *argv[])
 {
+    query = argv[2];
+    port = argv[6];
+    host = argv[4];
     int clientfd = 0;
     int p = atoi(argv[6]);
-    strcpy(query,argv[2]);
-    strcpy(port,argv[6]);
-    strcpy(host,argv[4]);
     const char root[50];
     strcpy(root,argv[2]);
+
     //create socket
     clientfd = socket(AF_INET, SOCK_STREAM, 0);
     if (clientfd == -1) {
@@ -74,7 +75,7 @@ int main(int argc, char *argv[])
 
     //create output
     if(type != NULL) {
-        char out_file[50];
+        char out_file[70] = {};
         mkdir("output",S_IRWXU|S_IRWXG|S_IROTH);
         if(strcmp(type,"directory")==0) {
             char *out = strtok(root,"/");  //path: output/../..
@@ -87,15 +88,18 @@ int main(int argc, char *argv[])
             }
         } else {
             char *out = strtok(root,"/");  //path: output/../..
-            sprintf(out_file,"output/%s",out);
+            strcat(out_file,"output");
             char *out1;
             do {
                 printf("\nout:%s\n",out_file);
+                out1 = out;
                 mkdir(out_file,S_IRWXU|S_IRWXG|S_IROTH);
                 out = strtok(NULL,"/");
-                out1 = strtok(NULL,"/");
-                sprintf(out_file+strlen(out_file),"/%s",out);
-            } while(out1);
+                //out1 = strtok(NULL,"/");
+                sprintf(out_file+strlen(out_file),"/%s",out1);
+            } while(out);
+            //strcat(out_file,out1);
+            printf("\n1out:%s\n",out_file);
             FILE *output = fopen(out_file,"w");
             //printf("f:%s",out_file);
             if(!output)
@@ -106,39 +110,17 @@ int main(int argc, char *argv[])
         }
     }
 
-    /*output = fopen(out_file,"ab+");
-    if(!output)
-      printf("error");
-    else
-      fprintf(out_file,"%s",content);
-    fclose(output);/*
-    if((strcmp(type,"directory")==0) & content != NULL){
-      char *doc[20];
-      doc[i] = strtok(content," ");
-      while(doc[i] != NULL){
-      //  printf("\n%s ",doc[i]);
-        i++;
-        doc[i] = strtok(NULL," ");
-      }
+    if((strcmp(type,"directory")==0) & content != NULL) {
+        char *doc[20];
+        doc[i] = strtok(content," ");
+        while(doc[i] != NULL) {
+            printf("\n%s ",doc[i]);
+            i++;
+            doc[i] = strtok(NULL," ");
+        }
+    } else {
 
-      int x=0;
-      while(x!=i){
-        strcpy(query,root);
-        //memcpy(query,root,sizeof(root));
-        //printf("%d: %s ",x,root);
-        strcat(query,"/");
-        strcat(query,doc[x]);
-        printf( "\n %s",query);
-        pthread_t t;
-        pthread_create(&t,NULL,*sendnrecv,clientfd);
-        pthread_join(t,NULL);
-       // sendnrecv(clientfd);
-
-
-        x++;
-      }
-      memset(response,0,sizeof(response));
-    }*/
+    }
 
 
 

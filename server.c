@@ -12,10 +12,10 @@
 #include "server.h"
 
 char *root;
-char content[300] = {};
+char content[5000] = {};
 Queue *Q = NULL;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-char response[500] = {};
+char response[5000] = {};
 int forClientSockfd = 0;
 
 
@@ -24,13 +24,12 @@ void listFile(char* root)
     DIR *dir;
     int num =0;
     struct dirent *ent;
-    char n[20][20];
+
     //printf("%s ",root);
     if((dir = opendir(root))!=NULL) {
         while((ent = readdir(dir))!=NULL) {
             //printf("%s ",ent->d_name);
             if(strcmp(ent->d_name,".")!=0 & strcmp(ent->d_name,"..")!=0) {
-                strcpy(n[num],ent->d_name);
                 //printf("\na:%s \n",n[num]);
                 sprintf(content+strlen(content),"%s ",ent->d_name);
                 num++;
