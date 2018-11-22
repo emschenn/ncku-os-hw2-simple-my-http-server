@@ -69,20 +69,10 @@ void process(char* root)
             doc[i] = strtok(NULL," ");
         }
         //strcat(root,"/");
-        for(int j=1; j < i; j++) {          //judge content
-            //printf("%s",doc[j]);
-            //printf("%s\n",newQuery);
-            if(strchr(doc[j],'.')!=NULL) {  //is file
-                sprintf(newQuery,"%s/%s",root2,doc[j]);
-                pthread_create(&t,NULL,*threadWork,newQuery);
-                pthread_join(t, NULL);
-            } else {                        //is folder
-                sprintf(newQuery,"%s/%s",root2,doc[j]);
-                //strcpy(query,newQuery);
-                //printf("\n %d :%s",i,query);
-                pthread_create(&t,NULL,*threadWork,newQuery);
-                pthread_join(t, NULL);
-            }
+        for(int j=1; j < i; j++) {          //create thread for each content in dir
+            sprintf(newQuery,"%s/%s",root2,doc[j]);
+            pthread_create(&t,NULL,*threadWork,newQuery);
+            pthread_join(t, NULL);
         }
     }
     free(root2);
