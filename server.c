@@ -90,18 +90,22 @@ void respond(char *msg)
     strcat(file,query); //root + query = file
 
     //printf("file: %s \n",file);
-    struct stat buf;
-    stat(file,&buf);
-    if(S_ISDIR(buf.st_mode)) {
-        type = "directory";
-        printf("file:%s\n",file);
-        listFile(file);
-    } else {
-        char *q = strtok(query,".");
-        char *queryType = strtok(NULL,".");
-        type = getType(queryType);
-        fileContent(file);
+
+    if(access(file,F_OK)==0) {
+        struct stat buf;
+        stat(file,&buf);
+        if(S_ISDIR(buf.st_mode)) {  //is folder
+            type = "directory";
+            printf("file:%s\n",file);
+            listFile(file);
+        } else {    //is file
+            char *q = strtok(query,".");
+            char *queryType = strtok(NULL,".");
+            type = getType(queryType);
+            fileContent(file);
+        }
     }
+
 
     if(query[0]!='/') {
         strcpy(status,"400 Bad Request");
@@ -117,10 +121,7 @@ void respond(char *msg)
         sprintf(response,"HTTP/1.x %s\r\nContent-Type: \r\nServer: httpserver/1.x\r\n\r\n",status);
     } else {
         strcpy(status,"200 OK");
-        if(strcmp(type,"directory")==0)
-            sprintf(response,"HTTP/1.x %s\r\nContent-Type: %s\r\nServer: httpserver/1.x\r\n\r\n%s",status,type,content);
-        else
-            sprintf(response,"HTTP/1.x %s\r\nContent-Type: %s\r\nServer: httpserver/1.x\r\n\r\n%s",status,type,content);
+        sprintf(response,"HTTP/1.x %s\r\nContent-Type: %s\r\nServer: httpserver/1.x\r\n\r\n%s",status,type,content);
     }
 }
 
