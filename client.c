@@ -34,6 +34,9 @@ void sendnrecv(char* query)
 void process(char* root)
 {
     int i=0;
+    char *root2;    //char *newRoot;
+    root2 = calloc(strlen(root)+1,sizeof(char));
+    strcpy(root2,root);
     pthread_t t;
     //char query[30]; strcpy(query,root);
     //printf("\nq:%s\n",response);
@@ -55,7 +58,7 @@ void process(char* root)
             createFile(root,content);
         }
     }
-    //printf("\nroot:%s\n",root);
+    //printf("\nroot:2%s\n",root);
     if((strcmp(type,"directory")==0)) { //for directory
         char *doc[20],newQuery[50];
         doc[i] = strtok(content,"\n ");
@@ -66,23 +69,23 @@ void process(char* root)
             doc[i] = strtok(NULL," ");
         }
         //strcat(root,"/");
-        for(int j=1; j < i; j++) {
+        for(int j=1; j < i; j++) {          //judge content
             //printf("%s",doc[j]);
-
             //printf("%s\n",newQuery);
-            if(strchr(doc[j],'.')!=NULL) {
-                sprintf(newQuery,"%s/%s",root,doc[j]);
+            if(strchr(doc[j],'.')!=NULL) {  //is file
+                sprintf(newQuery,"%s/%s",root2,doc[j]);
                 pthread_create(&t,NULL,*threadWork,newQuery);
                 pthread_join(t, NULL);
-            } else {
-                sprintf(newQuery,"%s/%s",root,doc[j]);
+            } else {                        //is folder
+                sprintf(newQuery,"%s/%s",root2,doc[j]);
                 //strcpy(query,newQuery);
-                //printf("qqqqqqqqqqqqq:%s",query);
+                //printf("\n %d :%s",i,query);
                 pthread_create(&t,NULL,*threadWork,newQuery);
                 pthread_join(t, NULL);
             }
         }
     }
+    free(root2);
     free(response1);
 }
 
